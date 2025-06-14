@@ -23,16 +23,12 @@ type InsomniaFolder struct {
 }
 
 type InsomniaSubgroup struct {
-	Name     string            `yaml:"name"`
-	Children []InsomniaRequest `yaml:"children"`
-}
-
-type InsomniaRequest struct {
-	Name    string       `yaml:"name"`
-	URL     string       `yaml:"url"`
-	Method  string       `yaml:"method"`
-	Body    *RequestBody `yaml:"body"`
-	Headers []Header     `yaml:"headers"`
+	Name     string             `yaml:"name"`
+	URL      string             `yaml:"url,omitempty"`
+	Method   string             `yaml:"method,omitempty"`
+	Body     *RequestBody       `yaml:"body,omitempty"`
+	Headers  []Header           `yaml:"headers,omitempty"`
+	Children []InsomniaSubgroup `yaml:"children,omitempty"`
 }
 
 type RequestBody struct {
@@ -58,13 +54,14 @@ type PostmanInfo struct {
 }
 
 type PostmanItem struct {
-	Name    string         `json:"name"`
-	Request PostmanRequest `json:"request"`
+	Name    string          `json:"name"`
+	Request *PostmanRequest `json:"request,omitempty"`
+	Item    []PostmanItem   `json:"item,omitempty"`
 }
 
 type PostmanRequest struct {
 	Method string              `json:"method"`
-	Header []Header            `json:"header"`
+	Header []Header            `json:"header,omitempty"`
 	Body   *PostmanRequestBody `json:"body,omitempty"`
 	URL    PostmanURL          `json:"url"`
 }
@@ -78,12 +75,11 @@ type PostmanURL struct {
 	Raw string `json:"raw"`
 }
 
-var version = "0.0.1"
+var version = "0.0.2"
 
 func showUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  i2p convert [--input-file FILE] [--output-file FILE]")
-	fmt.Println()
 	fmt.Println("  i2p help")
 	fmt.Println("  i2p version")
 	fmt.Println()
@@ -124,7 +120,6 @@ func main() {
 }
 
 func convertInsomniaToPostman(inputFile string, outputFile string) {
-	// Load YAML file
 	yamlData, err := os.ReadFile(inputFile)
 	if err != nil {
 		log.Fatalf("Failed to read file: %v", err)
@@ -142,33 +137,11 @@ func convertInsomniaToPostman(inputFile string, outputFile string) {
 		},
 	}
 
-	// Convert Insomnia to Postman
 	for _, folder := range insomnia.Collection {
-		for _, group := range folder.Children {
-			for _, req := range group.Children {
-				var body *PostmanRequestBody
-				if req.Body != nil {
-					body = &PostmanRequestBody{
-						Mode: "raw",
-						Raw:  req.Body.Text,
-					}
-				}
-
-				item := PostmanItem{
-					Name: req.Name,
-					Request: PostmanRequest{
-						Method: req.Method,
-						Header: req.Headers,
-						Body:   body,
-						URL:    PostmanURL{Raw: req.URL},
-					},
-				}
-				postman.Item = append(postman.Item, item)
-			}
-		}
+		item := convertGroup(folder.Name, folder.Children)
+		postman.Item = append(postman.Item, item)
 	}
 
-	// Write to Postman JSON
 	output, err := json.MarshalIndent(postman, "", "  ")
 	if err != nil {
 		log.Fatalf("JSON marshal failed: %v", err)
@@ -178,5 +151,39 @@ func convertInsomniaToPostman(inputFile string, outputFile string) {
 		log.Fatalf("Write file failed: %v", err)
 	}
 
-	fmt.Println("Conversion successful! Output: " + outputFile)
+	fmt.Println("Conversion successful! Output:", outputFile)
+}
+
+func convertGroup(name string, children []InsomniaSubgroup) PostmanItem {
+	item := PostmanItem{Name: name}
+
+	for _, child := range children {
+		if child.URL != "" && child.Method != "" {
+			// It's a request
+			var body *PostmanRequestBody
+			if child.Body != nil {
+				body = &PostmanRequestBody{
+					Mode: "raw",
+					Raw:  child.Body.Text,
+				}
+			}
+
+			req := PostmanItem{
+				Name: child.Name,
+				Request: &PostmanRequest{
+					Method: child.Method,
+					Header: child.Headers,
+					Body:   body,
+					URL:    PostmanURL{Raw: child.URL},
+				},
+			}
+			item.Item = append(item.Item, req)
+		} else {
+			// It's a folder
+			subItem := convertGroup(child.Name, child.Children)
+			item.Item = append(item.Item, subItem)
+		}
+	}
+
+	return item
 }
