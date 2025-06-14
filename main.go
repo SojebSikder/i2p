@@ -129,9 +129,11 @@ type PostmanRequestBodyOptionsRaw struct {
 }
 
 type PostmanURL struct {
-	Raw  string   `json:"raw"`
-	Host []string `json:"host,omitempty"`
-	Path []string `json:"path,omitempty"`
+	Raw      string   `json:"raw"`
+	Protocol string   `json:"protocol,omitempty"`
+	Port     string   `json:"port,omitempty"`
+	Host     []string `json:"host,omitempty"`
+	Path     []string `json:"path,omitempty"`
 }
 
 // Core conversion logic
@@ -238,11 +240,20 @@ func parseURL(rawURL string) PostmanURL {
 	}
 
 	host := strings.Split(parsed.Hostname(), ".")
+	// remove protocol from host
+	host = strings.Split(host[0], ":")
+	host = host[:len(host)-1]
+	host = append(host, parsed.Hostname())
+
+	port := parsed.Port()
+
 	path := strings.Split(strings.Trim(parsed.Path, "/"), "/")
 
 	return PostmanURL{
-		Raw:  rawURL,
-		Host: host,
-		Path: path,
+		Raw:      rawURL,
+		Protocol: parsed.Scheme,
+		Host:     host,
+		Port:     port,
+		Path:     path,
 	}
 }
