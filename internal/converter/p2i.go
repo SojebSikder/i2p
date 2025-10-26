@@ -60,15 +60,23 @@ func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
 			}
 
 			if child.Request.Body != nil {
+				bodyText := strings.TrimSpace(child.Request.Body.Raw)
+
+				// Try to pretty-print JSON body if valid
+				var prettyJSON map[string]interface{}
+				if json.Unmarshal([]byte(bodyText), &prettyJSON) == nil {
+					formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
+					bodyText = string(formatted)
+				}
+
 				sub.Body = &RequestBody{
 					MimeType: "application/json",
-					Text:     child.Request.Body.Raw,
+					Text:     bodyText,
 				}
 			}
 
 			folder.Children = append(folder.Children, sub)
 		} else if len(child.Item) > 0 {
-			// Nested folder
 			subFolder := convertPostmanItemToFolder(child)
 			sub := InsomniaSubgroup{
 				Name:     subFolder.Name,
@@ -80,6 +88,43 @@ func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
 
 	return folder
 }
+
+// func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
+// 	folder := InsomniaFolder{
+// 		Name:     item.Name,
+// 		Children: []InsomniaSubgroup{},
+// 	}
+
+// 	for _, child := range item.Item {
+// 		if child.Request != nil {
+// 			sub := InsomniaSubgroup{
+// 				Name:    child.Name,
+// 				URL:     reconstructURL(child.Request.URL),
+// 				Method:  child.Request.Method,
+// 				Headers: child.Request.Header,
+// 			}
+
+// 			if child.Request.Body != nil {
+// 				sub.Body = &RequestBody{
+// 					MimeType: "application/json",
+// 					Text:     child.Request.Body.Raw,
+// 				}
+// 			}
+
+// 			folder.Children = append(folder.Children, sub)
+// 		} else if len(child.Item) > 0 {
+// 			// Nested folder
+// 			subFolder := convertPostmanItemToFolder(child)
+// 			sub := InsomniaSubgroup{
+// 				Name:     subFolder.Name,
+// 				Children: subFolder.Children,
+// 			}
+// 			folder.Children = append(folder.Children, sub)
+// 		}
+// 	}
+
+// 	return folder
+// }
 
 func reconstructURL(u PostmanURL) string {
 	if u.Raw != "" {

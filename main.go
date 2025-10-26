@@ -8,7 +8,7 @@ import (
 	"sojebsikder/i2p/internal/util"
 )
 
-var version = "0.0.1"
+var version = "0.0.2"
 
 func showUsage() {
 	fmt.Println("Usage:")
@@ -41,9 +41,9 @@ func main() {
 
 		inputFileEx := util.GetFileExtensionFromURL(inputFile)
 
-		if inputFileEx == "yaml" || inputFileEx == "yml" {
+		if inputFileEx == ".yaml" || inputFileEx == ".yml" {
 			converter.ConvertInsomniaToPostman(inputFile, outputFile)
-		} else if inputFileEx == "json" {
+		} else if inputFileEx == ".json" {
 			converter.ConvertPostmanToInsomnia(inputFile, outputFile)
 		} else {
 			fmt.Println("Input file format is not supported: " + inputFileEx)

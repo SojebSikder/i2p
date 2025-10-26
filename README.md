@@ -9,6 +9,15 @@ I2P is a tool for converting insomina data (Insomina v5) to postman (Postman v2.
 ./build.sh
 ```
 
+## Usage
+Insomnia to postman
+```
+i2p convert --input-file insomnia.yaml --output-file postman.json
+```
+Postman to insomnia
+```
+i2p convert --input-file postman.json --output-file insomnia.yaml
+```
 
 ## Supported commands
 
