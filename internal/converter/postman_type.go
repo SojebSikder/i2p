@@ -3,8 +3,14 @@ package converter
 // Postman structures
 
 type PostmanCollection struct {
-	Info PostmanInfo   `json:"info"`
-	Item []PostmanItem `json:"item"`
+	Info     PostmanInfo   `json:"info"`
+	Item     []PostmanItem `json:"item"`
+	Variable []Variable    `json:"variable"`
+}
+
+type Variable struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type PostmanInfo struct {

@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sojebsikder/i2p/internal/util"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/google/uuid"
 )
+
+var created = util.GetTime()
+var modified = util.GetTime()
+
+const sortKey = -1754819949124
 
 func ConvertPostmanToInsomnia(inputFile string, outputFile string) {
 	data, err := os.ReadFile(inputFile)
@@ -21,10 +27,18 @@ func ConvertPostmanToInsomnia(inputFile string, outputFile string) {
 		log.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
 
+	id := uuid.New()
+
 	insomnia := InsomniaExport{
-		Type:       "export",
-		Name:       postman.Info.Name,
-		Collection: []InsomniaFolder{},
+		Type: "collection.insomnia.rest/5.0",
+		Name: postman.Info.Name,
+		Meta: Meta{
+			ID:       id.String(),
+			Created:  created,
+			Modified: modified,
+		},
+		Environment: ConvertVariablesToEnv(postman.Variable),
+		Collection:  []InsomniaFolder{},
 	}
 
 	for _, item := range postman.Item {
@@ -32,7 +46,8 @@ func ConvertPostmanToInsomnia(inputFile string, outputFile string) {
 		insomnia.Collection = append(insomnia.Collection, folder)
 	}
 
-	yamlData, err := yaml.Marshal(insomnia)
+	yamlData, err := util.MarshalYAML(insomnia)
+
 	if err != nil {
 		log.Fatalf("Failed to marshal YAML: %v", err)
 	}
@@ -45,16 +60,30 @@ func ConvertPostmanToInsomnia(inputFile string, outputFile string) {
 }
 
 func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
+	id := uuid.New()
 	folder := InsomniaFolder{
-		Name:     item.Name,
+		Name: item.Name,
+		Meta: FolderMeta{
+			ID:       id.String(),
+			Created:  created,
+			Modified: modified,
+			SortKey:  sortKey,
+		},
 		Children: []InsomniaSubgroup{},
 	}
 
 	for _, child := range item.Item {
 		if child.Request != nil {
+			id := uuid.New()
 			sub := InsomniaSubgroup{
-				Name:    child.Name,
-				URL:     reconstructURL(child.Request.URL),
+				Name: child.Name,
+				URL:  reconstructURL(child.Request.URL),
+				Meta: FolderMeta{
+					ID:       id.String(),
+					Created:  created,
+					Modified: modified,
+					SortKey:  sortKey,
+				},
 				Method:  child.Request.Method,
 				Headers: child.Request.Header,
 			}
@@ -78,8 +107,15 @@ func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
 			folder.Children = append(folder.Children, sub)
 		} else if len(child.Item) > 0 {
 			subFolder := convertPostmanItemToFolder(child)
+			id := uuid.New()
 			sub := InsomniaSubgroup{
-				Name:     subFolder.Name,
+				Name: subFolder.Name,
+				Meta: FolderMeta{
+					ID:       id.String(),
+					Created:  created,
+					Modified: modified,
+					SortKey:  sortKey,
+				},
 				Children: subFolder.Children,
 			}
 			folder.Children = append(folder.Children, sub)
@@ -89,49 +125,38 @@ func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
 	return folder
 }
 
-// func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
-// 	folder := InsomniaFolder{
-// 		Name:     item.Name,
-// 		Children: []InsomniaSubgroup{},
-// 	}
+func ConvertVariablesToEnv(vars []Variable) map[string]interface{} {
+	env := map[string]interface{}{}
+	data := map[string]string{}
 
-// 	for _, child := range item.Item {
-// 		if child.Request != nil {
-// 			sub := InsomniaSubgroup{
-// 				Name:    child.Name,
-// 				URL:     reconstructURL(child.Request.URL),
-// 				Method:  child.Request.Method,
-// 				Headers: child.Request.Header,
-// 			}
+	for _, v := range vars {
+		if v.Key == "endpoint" {
+			data["base_url"] = v.Value
+		} else {
+			data[v.Key] = v.Value
+		}
+	}
 
-// 			if child.Request.Body != nil {
-// 				sub.Body = &RequestBody{
-// 					MimeType: "application/json",
-// 					Text:     child.Request.Body.Raw,
-// 				}
-// 			}
-
-// 			folder.Children = append(folder.Children, sub)
-// 		} else if len(child.Item) > 0 {
-// 			// Nested folder
-// 			subFolder := convertPostmanItemToFolder(child)
-// 			sub := InsomniaSubgroup{
-// 				Name:     subFolder.Name,
-// 				Children: subFolder.Children,
-// 			}
-// 			folder.Children = append(folder.Children, sub)
-// 		}
-// 	}
-
-// 	return folder
-// }
+	env["data"] = data
+	return env
+}
 
 func reconstructURL(u PostmanURL) string {
 	if u.Raw != "" {
+		// Handle Postman variable templates {{variable}}
+		if strings.HasPrefix(u.Raw, "{{") && strings.Contains(u.Raw, "}}") {
+			parts := strings.SplitN(u.Raw, "/", 2)
+			host := cleanTemplateVarP2i(parts[0])
+			path := []string{}
+			if len(parts) > 1 {
+				path = strings.Split(parts[1], "/")
+			}
+			return host + "/" + strings.Join(path, "/")
+		}
 		return u.Raw
 	}
 
-	// fallback: reconstruct URL from parts
+	// Fallback: reconstruct URL from parts
 	urlStr := ""
 	if u.Protocol != "" {
 		urlStr += u.Protocol + "://"
@@ -150,4 +175,12 @@ func reconstructURL(u PostmanURL) string {
 	}
 
 	return urlStr
+}
+
+func cleanTemplateVarP2i(input string) string {
+	// Postman variable {{variable}} -> Insomnia {{variable}}
+	input = strings.TrimSpace(input)
+	input = strings.TrimPrefix(input, "{{")
+	input = strings.TrimSuffix(input, "}}")
+	return "{{ _." + input + " }}"
 }

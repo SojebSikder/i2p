@@ -5,18 +5,34 @@ package converter
 type InsomniaExport struct {
 	Type        string                 `yaml:"type"`
 	Name        string                 `yaml:"name"`
+	Meta        Meta                   `yaml:"meta"`
 	Collection  []InsomniaFolder       `yaml:"collection"`
-	Environment map[string]interface{} `yaml:"environment"`
+	Environment map[string]interface{} `yaml:"environments"`
+}
+
+type Meta struct {
+	ID       string `yaml:"id"`
+	Created  int64  `yaml:"created"`
+	Modified int64  `yaml:"modified"`
+}
+
+type FolderMeta struct {
+	ID       string `yaml:"id"`
+	Created  int64  `yaml:"created"`
+	Modified int64  `yaml:"modified"`
+	SortKey  int64  `yaml:"sortKey"`
 }
 
 type InsomniaFolder struct {
 	Name     string             `yaml:"name"`
+	Meta     FolderMeta         `yaml:"meta"`
 	Children []InsomniaSubgroup `yaml:"children"`
 }
 
 type InsomniaSubgroup struct {
-	Name     string             `yaml:"name"`
 	URL      string             `yaml:"url,omitempty"`
+	Name     string             `yaml:"name"`
+	Meta     FolderMeta         `yaml:"meta"`
 	Method   string             `yaml:"method,omitempty"`
 	Body     *RequestBody       `yaml:"body,omitempty"`
 	Headers  []Header           `yaml:"headers,omitempty"`
