@@ -25,7 +25,6 @@ func MarshalYAML(v any) ([]byte, error) {
 func GetTime() int64 {
 	now := time.Now()
 	return now.Unix()
-
 }
 
 func GetFileNameFromURL(rawURL string) string {

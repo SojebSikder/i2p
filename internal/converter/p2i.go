@@ -91,7 +91,6 @@ func convertPostmanItemToFolder(item PostmanItem) InsomniaFolder {
 			if child.Request.Body != nil {
 				bodyText := strings.TrimSpace(child.Request.Body.Raw)
 
-				// Try to pretty-print JSON body if valid
 				var prettyJSON map[string]interface{}
 				if json.Unmarshal([]byte(bodyText), &prettyJSON) == nil {
 					formatted, _ := json.MarshalIndent(prettyJSON, "", "  ")
