@@ -1,6 +1,6 @@
 # Description
 
-I2P is a tool for converting insomina data (Insomina v5) to postman
+I2P is a tool for converting insomina data (Insomina v5) to postman (Postman v2.1) and vice versa
 
 ## Build
 

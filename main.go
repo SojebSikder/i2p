@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sojebsikder/i2p/internal/converter"
+	"sojebsikder/i2p/internal/util"
 )
 
 var version = "0.0.1"
@@ -38,7 +39,15 @@ func main() {
 		fs.StringVar(&outputFile, "output-file", outputFile, "Specify the output file")
 		fs.Parse(os.Args[2:])
 
-		converter.ConvertInsomniaToPostman(inputFile, outputFile)
+		inputFileEx := util.GetFileExtensionFromURL(inputFile)
+
+		if inputFileEx == "yaml" || inputFileEx == "yml" {
+			converter.ConvertInsomniaToPostman(inputFile, outputFile)
+		} else if inputFileEx == "json" {
+			converter.ConvertPostmanToInsomnia(inputFile, outputFile)
+		} else {
+			fmt.Println("Input file format is not supported: " + inputFileEx)
+		}
 
 	case "help":
 		showUsage()
